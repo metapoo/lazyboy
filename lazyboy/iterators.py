@@ -7,6 +7,7 @@
 """Iterator-based Cassandra tools."""
 
 import itertools as it
+import time
 from operator import attrgetter, itemgetter
 from collections import defaultdict
 
@@ -140,6 +141,17 @@ def pack(objects):
 def unpack(records):
     """Return a generator which unpacks objects from ColumnOrSuperColumns."""
     return (corsc.column or corsc.super_column for corsc in records)
+
+
+def tuples(cols):
+    """Yield tuples of (name, value) for seq of columns."""
+    return ((col.name, col.value) for col in cols)
+
+
+def columns(seq, ts=None):
+    """Yield Column instances form from seq of (name, value)."""
+    ts = int(time.time()) if ts is None else ts
+    return (Column(name, value, ts) for (name, value) in seq)
 
 
 def repeat_seq(seq, num=1):
