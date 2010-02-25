@@ -9,6 +9,12 @@
 from __future__ import with_statement
 from contextlib import contextmanager
 import logging
+import time
+
+
+def timestamp():
+    """Return a timestamp for Cassandra."""
+    return int(time.time() * 10e6)
 
 
 def raise_(exc=None, *args, **kwargs):
