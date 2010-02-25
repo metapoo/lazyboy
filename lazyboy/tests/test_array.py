@@ -13,6 +13,7 @@ import time
 from pprint import pprint
 
 import lazyboy as lzb
+import lazyboy.util as util
 from lazyboy.array import Array
 from lazyboy.iterators import columns
 
@@ -22,7 +23,7 @@ class ArrayTest(unittest.TestCase):
     def setUp(self):
         self.row_data = list(lzb.pack(columns(
                     ((str(uuid.uuid4()), random.randint(0, 10000))
-                     for x in range(100)), int(time.time()))))
+                     for x in range(100)), util.timestamp())))
 
         self.array = Array(lzb.Key("Keyspace", "Colfam", "Rowkey"))
         self.array._materialize = lambda *args, **kwargs: iter(self.row_data)

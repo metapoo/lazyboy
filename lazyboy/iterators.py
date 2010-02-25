@@ -13,6 +13,7 @@ from collections import defaultdict
 
 from lazyboy.connection import get_pool
 import lazyboy.exceptions as exc
+import lazyboy.util as util
 
 from cassandra.ttypes import SlicePredicate, SliceRange, ConsistencyLevel, \
     ColumnOrSuperColumn, Column, ColumnParent
@@ -150,7 +151,7 @@ def tuples(cols):
 
 def columns(seq, ts=None):
     """Yield Column instances form from seq of (name, value)."""
-    ts = int(time.time()) if ts is None else ts
+    ts = util.timestamp() if ts is None else ts
     return (Column(name, value, ts) for (name, value) in seq)
 
 

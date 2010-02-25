@@ -17,6 +17,7 @@ from cassandra.ttypes import Column, SuperColumn, ColumnOrSuperColumn, \
     ColumnParent
 
 import lazyboy.record
+import lazyboy.util as util
 from lazyboy.view import View
 from lazyboy.connection import Client
 from lazyboy.key import Key
@@ -44,7 +45,7 @@ class MockClient(Client):
             cols.append(ColumnOrSuperColumn(
                     column=Column(name=uuid.uuid4().hex,
                                   value=uuid.uuid4().hex,
-                                  timestamp=time.time())))
+                                  timestamp=util.timestamp())))
         _last_cols.extend(cols)
         return cols
 
@@ -472,7 +473,7 @@ class RecordTest(CassandraBaseTest):
         tstamp_2 = self.object.timestamp()
         self.assert_(tstamp_2 >= tstamp)
 
-        self.assert_(abs(self.object.timestamp() - time.time()) <= 2)
+        self.assert_(abs(self.object.timestamp() < util.timestamp()))
 
     def test_remove_key(self):
         """Test remove_key."""

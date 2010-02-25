@@ -16,6 +16,7 @@ from lazyboy.base import CassandraBase
 from lazyboy.key import Key
 import lazyboy.iterators as iterators
 import lazyboy.exceptions as exc
+import lazyboy.util as util
 
 
 class Record(CassandraBase, dict):
@@ -121,7 +122,7 @@ class Record(CassandraBase, dict):
     @staticmethod
     def timestamp():
         """Return a GMT UNIX timestamp."""
-        return int(time.time() * 10e6)
+        return util.timestamp()
 
     def __setitem__(self, item, value):
         """Set an item, storing it into the _columns backing store."""
