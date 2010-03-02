@@ -27,8 +27,9 @@ class ArrayTest(unittest.TestCase):
                      for x in range(100)), util.timestamp())))
 
         self.array = Array(lzb.Key("Keyspace", "Colfam", "Rowkey"))
-        self.array._materialize = lambda *args, **kwargs: \
-            kwargs.get('reverse') and reversed(self.row_data) or self.row_data
+        self.array._slice_iterator = lambda *args, **kwargs: \
+            (kwargs.get('reverse') and reversed(self.row_data)
+             or iter(self.row_data))
 
         fake_cas = type('FakeCas', (),
                         {'get_count': lambda *args: len(self.row_data)})
