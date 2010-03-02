@@ -4,13 +4,12 @@
 # Author: Ian Eure <ian@digg.com>
 #
 
+"""Unit tests for lazyboy.array."""
+
 
 import unittest
-import logging
 import uuid
 import random
-import time
-from pprint import pprint
 
 import lazyboy as lzb
 import lazyboy.util as util
@@ -20,13 +19,16 @@ from lazyboy.iterators import columns
 
 class ArrayTest(unittest.TestCase):
 
+    """Test suite for lazyboy.array."""
+
     def setUp(self):
         self.row_data = list(lzb.pack(columns(
                     ((str(uuid.uuid4()), random.randint(0, 10000))
                      for x in range(100)), util.timestamp())))
 
         self.array = Array(lzb.Key("Keyspace", "Colfam", "Rowkey"))
-        self.array._materialize = lambda *args, **kwargs: iter(self.row_data)
+        self.array._materialize = lambda *args, **kwargs: \
+            kwargs.get('reverse') and reversed(self.row_data) or self.row_data
 
         fake_cas = type('FakeCas', (),
                         {'get_count': lambda *args: len(self.row_data)})
@@ -45,6 +47,10 @@ class ArrayTest(unittest.TestCase):
             self.assert_(self.row_data[:key] == self.array[:key])
             self.assert_(self.row_data[2:key] == self.array[2:key])
         self.assert_(self.row_data[::2] == self.array[::2])
+
+    def test_reversed(self):
+        self.assert_(list(reversed(self.array)) ==
+                     list(reversed(self.row_data)))
 
 
 if __name__ == '__main__':
