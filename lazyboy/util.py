@@ -14,7 +14,7 @@ import time
 
 def timestamp():
     """Return a timestamp for Cassandra."""
-    return int(time.time() * 10e6)
+    return int(time.time() * 1e6)
 
 
 def raise_(exc=None, *args, **kwargs):
