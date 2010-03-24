@@ -9,6 +9,7 @@ from __future__ import with_statement
 import time
 import math
 import uuid
+import copy
 import random
 import types
 import unittest
@@ -235,7 +236,9 @@ class RecordTest(CassandraBaseTest):
         self.assert_(self.object._original == cols)
 
         for col in cols.values():
-            self.assert_(self.object[col.name] == col.value)
+            self.assert_(self.object[col.name] == col.value,
+                         "Expected %r, got %r for col %s" %
+                         (col.value, self.object[col.name], col.name))
             self.assert_(self.object._columns[col.name] == col)
 
     def test_get_batch_args(self):
@@ -335,11 +338,6 @@ class RecordTest(CassandraBaseTest):
                              (col.name, data[col.name], col.value))
             self.assert_(col == self.object._columns[col.name],
                          "Column from cf._columns wasn't used in mutation_t")
-
-            self.assert_(
-                self.object._original['eggs']
-                is not self.object._columns['eggs'],
-                "Internal state corrupted on save.")
 
     def test_save_index(self):
 
@@ -475,6 +473,7 @@ class RecordTest(CassandraBaseTest):
         tstamp_2 = self.object.timestamp()
         self.assert_(tstamp_2 >= tstamp)
 
+        time.sleep(.01)
         self.assert_(abs(self.object.timestamp() < util.timestamp()))
 
     def test_remove_key(self):
@@ -485,15 +484,16 @@ class RecordTest(CassandraBaseTest):
             lazyboy.record.get_pool = lambda keyspace: client
             Record.remove_key(key)
 
-    def test_modified_reference(self):
+    def test_modified_nreference(self):
         """Make sure original column values don't change."""
         rec = Record()._inject(Key('foo', 'bar', 'baz'),
                                (Column("username", "whaddup"),))
-        orig = rec['username']
+
+        orig = copy.copy(rec._original['username'])
         rec['username'] = "jcleese"
-        self.assert_(rec._original['username'].value == orig)
-
-
+        self.assert_(rec._original['username'] == orig,
+                     "Original column mutated, expected %r, got %r" %
+                     (orig, rec._original['username']))
 class MirroredRecordTest(unittest.TestCase):
 
     """Tests for MirroredRecord"""

@@ -134,7 +134,7 @@ class Record(CassandraBase, dict):
         value = self.sanitize(value)
 
         # If this doesn't change anything, don't record it
-        _orig = self._original.get(item)
+        _orig = self._original.get(item, None)
         if _orig and _orig.value == value:
             return
 
@@ -143,13 +143,19 @@ class Record(CassandraBase, dict):
         if item not in self._columns:
             self._columns[item] = Column(name=item)
 
-        col = self._columns[item]
-
         if item in self._deleted:
             del self._deleted[item]
 
         self._modified[item] = True
-        col.value, col.timestamp = value, self.timestamp()
+
+        # Copy-on-write, saves 100% for r/o records
+        if self._columns[item] is _orig:
+            col = copy.copy(_orig)
+            self._columns[item] = col
+
+        assert self._columns[item] is not self._original.get(item, None), \
+            "Whoops, not modifying the original column."
+        self._columns[item].value = value
 
     def __delitem__(self, item):
         dict.__delitem__(self, item)
@@ -220,6 +226,11 @@ class Record(CassandraBase, dict):
                 self._modified.clear()
             self._original = copy.deepcopy(self._columns)
 
+        # Clean up internal state
+        self._modified.clear()
+        self._deleted.clear()
+        self._original = copy.copy(self._columns)
+
         return self
 
     def _save_internal(self, key, changes, consistency=None):
@@ -268,10 +279,9 @@ class Record(CassandraBase, dict):
 
     def revert(self):
         """Revert changes, restoring to the state we were in when loaded."""
-        for col in self._original.values():
-            dict.__setitem__(self, col.name, col.value)
-            self._columns[col.name] = copy.copy(col)
-
+        self._columns = copy.copy(self._original)
+        dict.update(self, ((col.name, col.value)
+                           for col in self._columns.itervalues()))
         self._modified, self._deleted = {}, {}
 
 
