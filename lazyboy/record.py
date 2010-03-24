@@ -111,8 +111,12 @@ class Record(CassandraBase, dict):
 
     def sanitize(self, value):
         """Return a value appropriate for sending to Cassandra."""
+        if value is None:
+            raise exc.ErrorInvalidValue("You may not set an item to None.")
+
         if value.__class__ is unicode:
             value = value.encode('utf-8')
+
         return str(value)
 
     def __repr__(self):
@@ -126,8 +130,6 @@ class Record(CassandraBase, dict):
 
     def __setitem__(self, item, value):
         """Set an item, storing it into the _columns backing store."""
-        if value is None:
-            raise exc.ErrorInvalidValue("You may not set an item to None.")
 
         value = self.sanitize(value)
 

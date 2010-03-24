@@ -123,6 +123,8 @@ class RecordTest(CassandraBaseTest):
 
     def test_sanitize(self):
         self.assert_(isinstance(self.object.sanitize(u'ÜNICÖDE'), str))
+        self.assertRaises(ValueError, self.object.sanitize, None)
+        self.assertRaises(exc.LazyboyException, self.object.sanitize, None)
 
     def test_repr(self):
         self.assert_(isinstance(repr(self.object), str))
