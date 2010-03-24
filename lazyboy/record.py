@@ -168,11 +168,18 @@ class Record(CassandraBase, dict):
     def _inject(self, key, columns):
         """Inject columns into the record after they have been fetched.."""
         self.key = key
-        if not isinstance(columns, dict):
-            columns = dict((col.name, col) for col in iter(columns))
 
-        self._original = columns
-        self.revert()
+        if isinstance(columns, dict):
+            columns = columns.itervalues()
+
+        self._original = {}
+        for col in columns:
+            self._original[col.name] = col
+            dict.__setitem__(self, col.name, col.value)
+
+        self._columns = copy.copy(self._original)
+        self._modified, self._deleted = {}, {}
+
         return self
 
     def _marshal(self):
@@ -189,11 +196,7 @@ class Record(CassandraBase, dict):
 
         self._clean()
         consistency = consistency or self.consistency
-
-        columns = iterators.slice_iterator(key, consistency)
-
-        self._inject(key, dict([(column.name, column) for column in columns]))
-        return self
+        return self._inject(key, iterators.slice_iterator(key, consistency))
 
     def save(self, consistency=None):
         """Save the record, returns self."""
