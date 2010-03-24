@@ -156,6 +156,7 @@ class Record(CassandraBase, dict):
         assert self._columns[item] is not self._original.get(item, None), \
             "Whoops, not modifying the original column."
         self._columns[item].value = value
+        self._columns[item].timestamp = self.timestamp()
 
     def __delitem__(self, item):
         dict.__delitem__(self, item)
