@@ -187,14 +187,13 @@ class RecordTest(CassandraBaseTest):
 
     def test_delitem(self):
         data = {'id': 'eggs', 'title': 'bacon'}
+        self.object._inject(Key("keyspace", "colfam", "foods"),
+                            [Column(name, value)
+                             for (name, value) in data.iteritems()])
         for k in data:
             self.object[k] = data[k]
             self.assert_(self.object[k] == data[k],
                          "Data not set in Record")
-            self.assert_(k not in self.object._deleted,
-                         "Key was marked as deleted.")
-            self.assert_(k in self.object._modified,
-                         "Key not in modified list")
             del self.object[k]
             self.assert_(k not in self.object, "Key was not deleted.")
             self.assert_(k in self.object._deleted,
@@ -494,6 +493,19 @@ class RecordTest(CassandraBaseTest):
         self.assert_(rec._original['username'] == orig,
                      "Original column mutated, expected %r, got %r" %
                      (orig, rec._original['username']))
+
+    def test_issue_17(self):
+        """Make sure newly-added columns additions aren't deleted.
+
+        See: http://github.com/digg/lazyboy/issues#issue/17
+        """
+        self.object.set_key(Key("ks", "cf", "issue_17"))
+        self.object['column'] = "value"
+        del self.object['column']
+        changes = self.object._marshal()
+        self.assert_(not changes['deleted'])
+
+
 class MirroredRecordTest(unittest.TestCase):
 
     """Tests for MirroredRecord"""

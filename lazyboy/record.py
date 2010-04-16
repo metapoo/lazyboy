@@ -161,7 +161,9 @@ class Record(CassandraBase, dict):
     def __delitem__(self, item):
         dict.__delitem__(self, item)
         # Don't record this as a deletion if it wouldn't require a remove()
-        self._deleted[item] = item in self._original
+        if item in self._original:
+            self._deleted[item] = True
+
         if item in self._modified:
             del self._modified[item]
         del self._columns[item]
