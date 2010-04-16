@@ -75,7 +75,7 @@ def multigetterator(keys, consistency, **range_args):
         out[keyspace] = {}
         for (colfam, cf_keys) in groupsort(ks_keys, GET_COLFAM):
 
-            if colfam not in keyspace:
+            if colfam not in out[keyspace]:
                 out[keyspace][colfam] = defaultdict(dict)
 
             for (supercol, sc_keys) in groupsort(cf_keys, GET_SUPERCOL):
