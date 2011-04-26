@@ -8,8 +8,6 @@
 
 import unittest
 import types
-import uuid
-import random
 import itertools as it
 
 from lazyboy.key import Key
@@ -28,9 +26,11 @@ class SliceIteratorTest(unittest.TestCase):
     def setUp(self):
         """Prepare the test fixture."""
         self.__get_pool = iterators.get_pool
-        self.client = MockClient(['127.0.0.1:9160'])
-        iterators.get_pool = lambda pool: self.client
-
+        self.clients = {"eggs": MockClient("eggs", ['127.0.0.1:9160']),
+                        "tomato": MockClient("tomato", ['127.0.0.1:9160'])}
+        iterators.get_pool = lambda pool: self.clients[pool]
+        self.client = self.clients["eggs"]
+        
     def tearDown(self):
         """Tear down the test fixture."""
         iterators.get_pool = self.__get_pool
@@ -94,8 +94,8 @@ class SliceIteratorTest(unittest.TestCase):
                  {'cleese': pack([Column(name="john", value="cleese")]),
                   'gilliam': pack([Column(name="terry", value="gilliam")])},
                  'spam': # Column Family
-                     {'jones': pack([Column(name="terry", value="jones")]),
-                      'idle': pack([Column(name="eric", value="idle")])}},
+                 {'jones': pack([Column(name="terry", value="jones")]),
+                  'idle': pack([Column(name="eric", value="idle")])}},
                 'tomato': # Keyspace
                 {'sausage': # Column Family
                  {'chapman':
@@ -103,10 +103,14 @@ class SliceIteratorTest(unittest.TestCase):
                   'palin':
                       pack([SuperColumn(name="pal_scol", columns=[])])}}}
 
-        def multiget_slice(keyspace, keys, column_parent, predicate,
-                           consistencylevel):
-            return data[keyspace][column_parent.column_family]
-        self.client.multiget_slice = multiget_slice
+        def gen_ms(keyspace):
+            def multiget_slice(keys, column_parent, predicate,
+                               consistencylevel):
+                return data[keyspace][column_parent.column_family]
+            return multiget_slice
+        
+        for keyspace in ("eggs", "tomato"):
+            self.clients[keyspace].multiget_slice = gen_ms(keyspace)
 
         res = iterators.multigetterator(keys, ConsistencyLevel.ONE)
         self.assert_(isinstance(res, dict))
@@ -235,33 +239,6 @@ class UtilTest(unittest.TestCase):
             self.assert_(len(chunk) >= 1 and len(chunk) <= 3)
             for elt in chunk:
                 self.assert_(isinstance(elt, str))
-
-    def test_tuples(self):
-        """Test iterators.tuples."""
-        cols = [Column(str(uuid.uuid4()), random.randint(0, 10000), ts)
-                for ts in range(100)]
-        tuples = iterators.tuples(cols)
-        self.assert_(isinstance(tuples, types.GeneratorType))
-        tuples = list(tuples)
-        self.assert_(len(tuples) == len(cols))
-        for (idx, (name, value)) in enumerate(tuples):
-            self.assert_(cols[idx].name == name)
-            self.assert_(cols[idx].value == value)
-
-    def test_columns(self):
-        """Test iterators.tuples."""
-        tuples = [(str(uuid.uuid4()), random.randint(0, 10000))
-                  for x in range(100)]
-
-        cols = iterators.columns(tuples, 0)
-        self.assert_(isinstance(cols, types.GeneratorType))
-        cols = list(cols)
-        self.assert_(len(tuples) == len(cols))
-        for (idx, col) in enumerate(cols):
-            self.assert_(tuples[idx][0] == col.name)
-            self.assert_(tuples[idx][1] == col.value)
-            self.assert_(col.timestamp == 0)
-
 
 
 if __name__ == '__main__':
