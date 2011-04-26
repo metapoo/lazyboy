@@ -7,11 +7,13 @@
 """Iterator-based Cassandra tools."""
 
 import itertools as it
+import time
 from operator import attrgetter, itemgetter
 from collections import defaultdict
 
 from lazyboy.connection import get_pool
 import lazyboy.exceptions as exc
+import lazyboy.util as util
 
 from cassandra.ttypes import SlicePredicate, SliceRange, ConsistencyLevel, \
     ColumnOrSuperColumn, Column, ColumnParent
@@ -73,7 +75,7 @@ def multigetterator(keys, consistency, **range_args):
         out[keyspace] = {}
         for (colfam, cf_keys) in groupsort(ks_keys, GET_COLFAM):
 
-            if colfam not in keyspace:
+            if colfam not in out[keyspace]:
                 out[keyspace][colfam] = defaultdict(dict)
 
             for (supercol, sc_keys) in groupsort(cf_keys, GET_SUPERCOL):
@@ -140,6 +142,17 @@ def pack(objects):
 def unpack(records):
     """Return a generator which unpacks objects from ColumnOrSuperColumns."""
     return (corsc.column or corsc.super_column for corsc in records)
+
+
+def tuples(cols):
+    """Yield tuples of (name, value) for seq of columns."""
+    return ((col.name, col.value) for col in cols)
+
+
+def columns(seq, ts=None):
+    """Yield Column instances form from seq of (name, value)."""
+    ts = util.timestamp() if ts is None else ts
+    return (Column(name, value, ts) for (name, value) in seq)
 
 
 def repeat_seq(seq, num=1):

@@ -14,5 +14,6 @@ from lazyboy.view import (View, PartitionedView, BatchLoadingView,
                           FaultTolerantView)
 from lazyboy.iterators import slice_iterator, sparse_get, sparse_multiget, \
     key_range, key_range_iterator, pack, unpack, multigetterator
+from lazyboy.array import Array
 from . import column_crud
 from . import exceptions

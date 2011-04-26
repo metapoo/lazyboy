@@ -16,6 +16,7 @@ from lazyboy.base import CassandraBase
 from lazyboy.key import Key
 import lazyboy.iterators as iterators
 import lazyboy.exceptions as exc
+import lazyboy.util as util
 
 
 class Record(CassandraBase, dict):
@@ -110,8 +111,12 @@ class Record(CassandraBase, dict):
 
     def sanitize(self, value):
         """Return a value appropriate for sending to Cassandra."""
+        if value is None:
+            raise exc.ErrorInvalidValue("You may not set an item to None.")
+
         if value.__class__ is unicode:
             value = value.encode('utf-8')
+
         return str(value)
 
     def __repr__(self):
@@ -121,17 +126,15 @@ class Record(CassandraBase, dict):
     @staticmethod
     def timestamp():
         """Return a GMT UNIX timestamp."""
-        return int(time.time())
+        return util.timestamp()
 
     def __setitem__(self, item, value):
         """Set an item, storing it into the _columns backing store."""
-        if value is None:
-            raise exc.ErrorInvalidValue("You may not set an item to None.")
 
         value = self.sanitize(value)
 
         # If this doesn't change anything, don't record it
-        _orig = self._original.get(item)
+        _orig = self._original.get(item, None)
         if _orig and _orig.value == value:
             return
 
@@ -140,18 +143,27 @@ class Record(CassandraBase, dict):
         if item not in self._columns:
             self._columns[item] = Column(name=item)
 
-        col = self._columns[item]
-
         if item in self._deleted:
             del self._deleted[item]
 
         self._modified[item] = True
-        col.value, col.timestamp = value, self.timestamp()
+
+        # Copy-on-write, saves 100% for r/o records
+        if self._columns[item] is _orig:
+            col = copy.copy(_orig)
+            self._columns[item] = col
+
+        assert self._columns[item] is not self._original.get(item, None), \
+            "Whoops, not modifying the original column."
+        self._columns[item].value = value
+        self._columns[item].timestamp = self.timestamp()
 
     def __delitem__(self, item):
         dict.__delitem__(self, item)
         # Don't record this as a deletion if it wouldn't require a remove()
-        self._deleted[item] = item in self._original
+        if item in self._original:
+            self._deleted[item] = True
+
         if item in self._modified:
             del self._modified[item]
         del self._columns[item]
@@ -159,11 +171,18 @@ class Record(CassandraBase, dict):
     def _inject(self, key, columns):
         """Inject columns into the record after they have been fetched.."""
         self.key = key
-        if not isinstance(columns, dict):
-            columns = dict((col.name, col) for col in iter(columns))
 
-        self._original = columns
-        self.revert()
+        if isinstance(columns, dict):
+            columns = columns.itervalues()
+
+        self._original = {}
+        for col in columns:
+            self._original[col.name] = col
+            dict.__setitem__(self, col.name, col.value)
+
+        self._columns = copy.copy(self._original)
+        self._modified, self._deleted = {}, {}
+
         return self
 
     def _marshal(self):
@@ -180,11 +199,7 @@ class Record(CassandraBase, dict):
 
         self._clean()
         consistency = consistency or self.consistency
-
-        columns = iterators.slice_iterator(key, consistency)
-
-        self._inject(key, dict([(column.name, column) for column in columns]))
-        return self
+        return self._inject(key, iterators.slice_iterator(key, consistency))
 
     def save(self, consistency=None):
         """Save the record, returns self."""
@@ -216,6 +231,11 @@ class Record(CassandraBase, dict):
             if changes['changed']:
                 self._modified.clear()
             self._original = copy.deepcopy(self._columns)
+
+        # Clean up internal state
+        self._modified.clear()
+        self._deleted.clear()
+        self._original = copy.copy(self._columns)
 
         return self
 
@@ -265,10 +285,9 @@ class Record(CassandraBase, dict):
 
     def revert(self):
         """Revert changes, restoring to the state we were in when loaded."""
-        for col in self._original.values():
-            dict.__setitem__(self, col.name, col.value)
-            self._columns[col.name] = copy.copy(col)
-
+        self._columns = copy.copy(self._original)
+        dict.update(self, ((col.name, col.value)
+                           for col in self._columns.itervalues()))
         self._modified, self._deleted = {}, {}
 
 

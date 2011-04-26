@@ -9,6 +9,7 @@ from __future__ import with_statement
 import time
 import math
 import uuid
+import copy
 import random
 import types
 import unittest
@@ -17,6 +18,7 @@ from cassandra.ttypes import Column, SuperColumn, ColumnOrSuperColumn, \
     ColumnParent
 
 import lazyboy.record
+import lazyboy.util as util
 from lazyboy.view import View
 from lazyboy.connection import Client
 from lazyboy.key import Key
@@ -44,7 +46,7 @@ class MockClient(Client):
             cols.append(ColumnOrSuperColumn(
                     column=Column(name=uuid.uuid4().hex,
                                   value=uuid.uuid4().hex,
-                                  timestamp=time.time())))
+                                  timestamp=util.timestamp())))
         _last_cols.extend(cols)
         return cols
 
@@ -122,6 +124,8 @@ class RecordTest(CassandraBaseTest):
 
     def test_sanitize(self):
         self.assert_(isinstance(self.object.sanitize(u'ÜNICÖDE'), str))
+        self.assertRaises(ValueError, self.object.sanitize, None)
+        self.assertRaises(exc.LazyboyException, self.object.sanitize, None)
 
     def test_repr(self):
         self.assert_(isinstance(repr(self.object), str))
@@ -183,14 +187,13 @@ class RecordTest(CassandraBaseTest):
 
     def test_delitem(self):
         data = {'id': 'eggs', 'title': 'bacon'}
+        self.object._inject(Key("keyspace", "colfam", "foods"),
+                            [Column(name, value)
+                             for (name, value) in data.iteritems()])
         for k in data:
             self.object[k] = data[k]
             self.assert_(self.object[k] == data[k],
                          "Data not set in Record")
-            self.assert_(k not in self.object._deleted,
-                         "Key was marked as deleted.")
-            self.assert_(k in self.object._modified,
-                         "Key not in modified list")
             del self.object[k]
             self.assert_(k not in self.object, "Key was not deleted.")
             self.assert_(k in self.object._deleted,
@@ -232,7 +235,9 @@ class RecordTest(CassandraBaseTest):
         self.assert_(self.object._original == cols)
 
         for col in cols.values():
-            self.assert_(self.object[col.name] == col.value)
+            self.assert_(self.object[col.name] == col.value,
+                         "Expected %r, got %r for col %s" %
+                         (col.value, self.object[col.name], col.name))
             self.assert_(self.object._columns[col.name] == col)
 
     def test_get_batch_args(self):
@@ -332,11 +337,6 @@ class RecordTest(CassandraBaseTest):
                              (col.name, data[col.name], col.value))
             self.assert_(col == self.object._columns[col.name],
                          "Column from cf._columns wasn't used in mutation_t")
-
-            self.assert_(
-                self.object._original['eggs']
-                is not self.object._columns['eggs'],
-                "Internal state corrupted on save.")
 
     def test_save_index(self):
 
@@ -472,7 +472,8 @@ class RecordTest(CassandraBaseTest):
         tstamp_2 = self.object.timestamp()
         self.assert_(tstamp_2 >= tstamp)
 
-        self.assert_(abs(self.object.timestamp() - time.time()) <= 2)
+        time.sleep(.01)
+        self.assert_(abs(self.object.timestamp() < util.timestamp()))
 
     def test_remove_key(self):
         """Test remove_key."""
@@ -482,13 +483,27 @@ class RecordTest(CassandraBaseTest):
             lazyboy.record.get_pool = lambda keyspace: client
             Record.remove_key(key)
 
-    def test_modified_reference(self):
+    def test_modified_nreference(self):
         """Make sure original column values don't change."""
         rec = Record()._inject(Key('foo', 'bar', 'baz'),
                                (Column("username", "whaddup"),))
-        orig = rec['username']
+
+        orig = copy.copy(rec._original['username'])
         rec['username'] = "jcleese"
-        self.assert_(rec._original['username'].value == orig)
+        self.assert_(rec._original['username'] == orig,
+                     "Original column mutated, expected %r, got %r" %
+                     (orig, rec._original['username']))
+
+    def test_issue_17(self):
+        """Make sure newly-added columns additions aren't deleted.
+
+        See: http://github.com/digg/lazyboy/issues#issue/17
+        """
+        self.object.set_key(Key("ks", "cf", "issue_17"))
+        self.object['column'] = "value"
+        del self.object['column']
+        changes = self.object._marshal()
+        self.assert_(not changes['deleted'])
 
 
 class MirroredRecordTest(unittest.TestCase):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# © 2009 Digg, Inc. All rights reserved.
+# © 2009, 2010 Digg, Inc. All rights reserved.
 # Author: Ian Eure <ian@digg.com>
 #
 
@@ -22,7 +22,7 @@ class ErrorMissingField(LazyboyException):
     pass
 
 
-class ErrorInvalidValue(LazyboyException):
+class ErrorInvalidValue(LazyboyException, ValueError):
     """Raised when a Record's item is set to None."""
     pass
 
