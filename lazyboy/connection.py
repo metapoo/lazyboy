@@ -201,7 +201,7 @@ class Client(object):
         """Connect to Cassandra if not connected."""
 
         client = self._get_server()
-        
+
         if client.transport.isOpen() and self._recycle:
             if (client.connect_time + self._recycle) > time.time():
                 return client
@@ -423,8 +423,7 @@ class Client(object):
         
         - key
         - column_path
-        - value
-        - timestamp
+        - column
         - consistency_level
         """
         with self.get_client() as client:
