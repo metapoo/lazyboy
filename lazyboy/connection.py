@@ -164,7 +164,7 @@ class Client(object):
                          [self._build_server(class_, *server.split(":"),
                                              **conn_args)
                           for server in servers] if s]
-        self._current_server = random.randint(0, len(self._clients))
+        self._current_server = random.randint(0, max(len(self._clients)-1,0)) 
         
     def _build_server(self, class_, host, port, **conn_args):
         """Return a client for the given host and port."""
@@ -188,9 +188,9 @@ class Client(object):
         if self._clients is None or len(self._clients) == 0:
             raise exc.ErrorCassandraNoServersConfigured()
 
-        self._current_server = self._current_server % len(self._clients)
         server = self._clients[self._current_server]
         self._current_server += 1
+        self._current_server = self._current_server % len(self._clients)
         return server
 
     def list_servers(self):
@@ -245,6 +245,7 @@ class Client(object):
                                          self._servers[self._current_server])
         except (cas_types.NotFoundException, cas_types.UnavailableException,
                 cas_types.InvalidRequestException), ex:
+
             ex.args += (self._servers[self._current_server],
                         "on %s" % self._servers[self._current_server])
             raise ex
