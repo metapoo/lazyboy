@@ -71,7 +71,11 @@ class Array(CassandraBase):
     def extend(self, iterable):
         """Append multiple records to this array."""
         now = timestamp()
-        cfmap = {self.key.column_family: [Column(value, "", now)
-                                          for value in iterable]}
-        self._get_cas().batch_insert(self.key.keyspace, self.key.key, cfmap,
-                                     self.consistency)
+        columns = [Column(value, "", now) for value in iterable]
+        mutations = [Mutation(column_or_supercolumn=ColumnOrSuperColumn(column=col))
+                     for col in columns]
+
+        mutation_map = {key.key:
+                        {key.column_family: mutations}}
+                                                            
+        self._get_cas().batch_mutate(mutation_map, consistency)

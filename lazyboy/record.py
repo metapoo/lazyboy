@@ -259,8 +259,6 @@ class Record(CassandraBase, dict):
         """Return a BatchMutation for the given key and columns."""
         consistency = consistency or self.consistency
 
-        mutations = []
-        
         if key.is_super():
             columns = [SuperColumn(name=key.super_column, columns=columns)]
             col_type = "super_column"

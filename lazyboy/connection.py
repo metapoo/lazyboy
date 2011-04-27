@@ -395,18 +395,6 @@ class Client(object):
             return client.describe_keyspace(*args, **kwargs)
 
     @retry()
-    def batch_insert(self, *args, **kwargs):
-        """
-        Parameters:
-        
-        - key
-        - cfmap
-        - consistency_level
-        """
-        with self.get_client() as client:
-            return client.batch_insert(*args, **kwargs)
-
-    @retry()
     def batch_mutate(self, *args, **kwargs):
         """
         Parameters:
