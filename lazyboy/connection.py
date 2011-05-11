@@ -337,6 +337,7 @@ class Client(object):
         Parameters:        
         - key
         - column_parent
+        - predicate
         - consistency_level
         """
         with self.get_client() as client:

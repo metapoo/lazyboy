@@ -51,8 +51,10 @@ class Array(CassandraBase):
 
     def __len__(self):
         """Return the length of this row."""
-        return self._get_cas().get_count(self.key.keyspace, self.key.key,
-                                         self.key, self.consistency)
+        return self._get_cas().get_count(self.key.key,
+                                         self.key,
+                                         SlicePredicate(slice_range=SliceRange("", "", False, 2147483647)),
+                                         self.consistency)
 
     def __repr__(self):
         """Return representation."""

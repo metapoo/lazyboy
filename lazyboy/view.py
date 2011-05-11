@@ -5,6 +5,7 @@
 #
 """Lazyboy: Views."""
 
+import sys
 import datetime
 import uuid
 import traceback
@@ -60,7 +61,9 @@ class View(CassandraBase):
     def __len__(self):
         """Return the number of records in this view."""
         return self._get_cas().get_count(
-            self.key.key, self.key, self.consistency)
+            self.key.key, self.key,
+            SlicePredicate(slice_range=SliceRange("", "", False, 2147483647)),
+            self.consistency)
 
     def _cols(self, start_col=None, end_col=None):
         """Yield columns in the view."""
